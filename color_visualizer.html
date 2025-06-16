@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>色データ3D可視化・混合シミュレーター</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .main-content {
+            flex: 1;
+            position: relative;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 22px;
+            text-align: center;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e1e8ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-small {
+            padding: 5px 8px;
+            font-size: 12px;
+            width: auto;
+            margin-left: 5px;
+        }
+
+        .btn-toggle {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+        }
+
+        .btn-toggle.active {
+            background: linear-gradient(45deg, #27ae60, #229954);
+        }
+
+        .info-panel {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-item {
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .info-value {
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .legend {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 8px;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .controls {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px;
+        }
+
+        .control-item {
+            margin-bottom: 8px;
+        }
+
+        .control-item label {
+            margin-bottom: 3px;
+            font-size: 13px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .mixer-panel {
+            margin-top: 15px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 6px;
+            border: 2px solid #27ae60;
+            display: none;
+        }
+
+        .mixer-panel.active {
+            display: block;
+        }
+
+        .color-input-group {
+            margin-bottom: 10px;
+            padding: 8px;
+            background: rgba(102, 126, 234, 0.05);
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .color-preview {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            display: inline-block;
+            margin-right: 8px;
+            border: 1px solid #ccc;
+            vertical-align: middle;
+        }
+
+        .color-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 3px;
+        }
+
+        .gram-input {
+            width: 70px;
+            padding: 4px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .target-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+        }
+
+        .target-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 3px;
+            margin-bottom: 2px;
+            font-size: 11px;
+        }
+
+        .target-item.selected {
+            background: rgba(102, 126, 234, 0.2);
+            border-radius: 3px;
+        }
+
+        .mixed-color-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: rgba(39, 174, 96, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid #27ae60;
+        }
+
+        .mixed-color-preview {
+            width: 40px;
+            height: 40px;
+            border-radius: 6px;
+            margin: 5px auto;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .distance-info {
+            margin-top: 10px;
+            padding: 8px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+            border-left: 3px solid #e74c3c;
+            font-size: 12px;
+        }
+
+        .preset-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .preset-btn {
+            flex: 1;
+            padding: 5px;
+            font-size: 11px;
+            background: #95a5a6;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .preset-btn:hover {
+            background: #7f8c8d;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .error {
+            background: rgba(231, 76, 60, 0.1);
+            border-left: 4px solid #e74c3c;
+            color: #e74c3c;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 13px;
+        }
+
+        .axis-labels {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .axis-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 4px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .axis-color {
+            width: 10px;
+            height: 10px;
+            margin-right: 6px;
+            border-radius: 2px;
+        }
+
+        .scrollable {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h1>色データ可視化・混合シミュレーター</h1>
+
+            <div class="input-group">
+                <label for="testcase">テストケース名:</label>
+                <input type="text" id="testcase" placeholder="例: 0000">
+            </div>
+
+            <button class="btn" onclick="loadTestCase()">読み込み</button>
+
+            <div id="info-panel" class="info-panel" style="display: none;">
+                <div class="info-item">
+                    <span class="info-label">グループ数:</span>
+                    <span class="info-value" id="info-n">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">所有色数:</span>
+                    <span class="info-value" id="info-k">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">目標色数:</span>
+                    <span class="info-value" id="info-h">-</span>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <button class="btn btn-toggle" id="mixer-toggle" onclick="toggleMixer()">
+                    混合シミュレーター: OFF
+                </button>
+            </div>
+
+            <div id="mixer-panel" class="mixer-panel">
+                <h2>色混合シミュレーター</h2>
+
+                <div class="preset-buttons">
+                    <button class="preset-btn" onclick="setAllGrams(1)">全て1g</button>
+                    <button class="preset-btn" onclick="setAllGrams(0)">全てリセット</button>
+                    <button class="preset-btn" onclick="normalizeGrams()">正規化</button>
+                </div>
+
+                <div id="own-colors-list" class="scrollable"></div>
+
+                <div class="mixed-color-info">
+                    <div class="color-label">混合結果:</div>
+                    <div class="mixed-color-preview" id="mixed-color-preview"></div>
+                    <div id="mixed-coords" style="font-size: 11px; text-align: center; margin-top: 5px;"></div>
+                </div>
+
+                <h2 style="margin-top: 15px;">目標色選択</h2>
+                <div id="target-colors-list" class="target-list"></div>
+
+                <div id="distance-info" class="distance-info" style="display: none;">
+                    <div class="color-label">選択された目標色との距離:</div>
+                    <div id="distance-value" style="font-weight: bold; font-size: 14px; text-align: center;"></div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <h2>凡例</h2>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #e74c3c;"></div>
+                    <span>所有色 (Own)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(52, 152, 219, 0.6);"></div>
+                    <span>目標色 (Target)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f39c12;"></div>
+                    <span>混合色 (Mixed)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 107, 107, 0.3);"></div>
+                    <span>所有色の凸包</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <h2>表示設定</h2>
+                <div class="control-item">
+                    <label>点のサイズ:</label>
+                    <input type="range" id="pointSize" min="0.3" max="2.0" step="0.1" value="0.8"
+                        oninput="updatePointSize()">
+                </div>
+                <div class="control-item">
+                    <label>透明度:</label>
+                    <input type="range" id="opacity" min="0.3" max="1.0" step="0.1" value="0.8"
+                        oninput="updateOpacity()">
+                </div>
+                <div class="control-item">
+                    <button class="btn" onclick="resetCamera()" style="margin-top: 8px;">視点リセット</button>
+                </div>
+
+                <h2 style="margin-top: 15px; font-size: 14px;">操作方法</h2>
+                <div style="font-size: 11px; color: #666; line-height: 1.3;">
+                    <div><strong>回転:</strong> 左ドラッグ</div>
+                    <div><strong>パン:</strong> Ctrl + 左ドラッグ</div>
+                    <div><strong>パン:</strong> 中ボタン/右ドラッグ</div>
+                    <div><strong>ズーム:</strong> ホイール</div>
+                    <div><strong>移動:</strong> 矢印キー</div>
+                    <div><strong>リセット:</strong> Ctrl + R</div>
+                    <div style="margin-top: 6px; border-top: 1px solid #ddd; padding-top: 6px;">
+                        <div><strong>ケース切替:</strong> Shift + ←→</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="error-panel" class="error" style="display: none;"></div>
+        </div>
+
+        <div class="main-content">
+            <div id="canvas-container">
+                <div class="loading" id="loading">3D環境を初期化中...</div>
+            </div>
+
+            <div class="axis-labels">
+                <div class="axis-item">
+                    <div class="axis-color" style="background: #00ffff;"></div>
+                    <span>C (Cyan)</span>
+                </div>
+                <div class="axis-item">
+                    <div class="axis-color" style="background: #ff00ff;"></div>
+                    <span>M (Magenta)</span>
+                </div>
+                <div class="axis-item">
+                    <div class="axis-color" style="background: #ffff00;"></div>
+                    <span>Y (Yellow)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/math/ConvexHull.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/geometries/ConvexGeometry.js"></script>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let labelRenderer;
+        let ownPoints = [], targetPoints = [];
+        let ownLabels = [];
+        let mixedPoint = null, connectionLine = null;
+        let convexHull = null;
+        let currentTestCase = null;
+        let ctrlPressed = false;
+        let mixerMode = false;
+
+        // 色データ
+        let ownColors = [];
+        let targetColors = [];
+        let selectedTargetIndex = -1;
+        let gramWeights = [];
+
+        // 3D環境の初期化
+        function init3D() {
+            const container = document.getElementById('canvas-container');
+
+            // シーンの作成
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xf0f0f0);
+
+            // カメラの作成
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(1.5, 1.5, 1.5);
+
+            // レンダラーの作成
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // CSS2Dレンダラーの作成（ラベル用）
+            labelRenderer = new THREE.CSS2DRenderer();
+            labelRenderer.setSize(container.clientWidth, container.clientHeight);
+            labelRenderer.domElement.style.position = 'absolute';
+            labelRenderer.domElement.style.top = '0px';
+            labelRenderer.domElement.style.pointerEvents = 'none';
+            container.appendChild(labelRenderer.domElement);
+
+            // コントロールの作成
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            // パン操作の設定
+            controls.enablePan = true;
+            controls.panSpeed = 1.0;
+            controls.keyPanSpeed = 0.3;
+
+            // ズーム設定
+            controls.enableZoom = true;
+            controls.zoomSpeed = 0.8;
+            controls.minDistance = 0.5;
+            controls.maxDistance = 10;
+
+            // 回転設定
+            controls.enableRotate = true;
+            controls.rotateSpeed = 0.8;
+
+            // マウスボタンの設定
+            controls.mouseButtons = {
+                LEFT: THREE.MOUSE.ROTATE,
+                MIDDLE: THREE.MOUSE.PAN,
+                RIGHT: THREE.MOUSE.PAN
+            };
+
+            // 軸の作成
+            createAxes();
+
+            // グリッドの作成
+            createGrid();
+
+            // ライトの追加
+            addLights();
+
+            // キーボードイベントの設定
+            setupKeyboardControls();
+
+            // リサイズイベント
+            window.addEventListener('resize', onWindowResize);
+
+            // レンダリングループ
+            animate();
+
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        function setupKeyboardControls() {
+            // Ctrlキーの状態を追跡
+            document.addEventListener('keydown', function (event) {
+                if (event.ctrlKey || event.metaKey) {
+                    ctrlPressed = true;
+                    controls.mouseButtons.LEFT = THREE.MOUSE.PAN;
+                }
+
+                // テストケース切り替え（Shift + 矢印キー）
+                if (event.shiftKey) {
+                    const testcaseInput = document.getElementById('testcase');
+                    const currentValue = testcaseInput.value.trim();
+
+                    if (event.code === 'ArrowLeft') {
+                        if (currentValue) {
+                            const num = parseInt(currentValue);
+                            if (!isNaN(num) && num > 0) {
+                                const newTestcase = (num - 1).toString().padStart(4, '0');
+                                testcaseInput.value = newTestcase;
+                                loadTestCase();
+                            }
+                        }
+                        event.preventDefault();
+                        return;
+                    } else if (event.code === 'ArrowRight') {
+                        if (currentValue) {
+                            const num = parseInt(currentValue);
+                            if (!isNaN(num) && num < 9999) {
+                                const newTestcase = (num + 1).toString().padStart(4, '0');
+                                testcaseInput.value = newTestcase;
+                                loadTestCase();
+                            }
+                        } else {
+                            testcaseInput.value = '0000';
+                            loadTestCase();
+                        }
+                        event.preventDefault();
+                        return;
+                    }
+                }
+
+                // 通常のキーボードでの視点操作（Shiftが押されていない時のみ）
+                if (!event.shiftKey) {
+                    const panDistance = 0.1;
+                    switch (event.code) {
+                        case 'ArrowUp':
+                            controls.panUp(panDistance);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowDown':
+                            controls.panUp(-panDistance);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowLeft':
+                            controls.panLeft(-panDistance);
+                            event.preventDefault();
+                            break;
+                        case 'ArrowRight':
+                            controls.panLeft(panDistance);
+                            event.preventDefault();
+                            break;
+                        case 'KeyR':
+                            if (event.ctrlKey) {
+                                resetCamera();
+                                event.preventDefault();
+                            }
+                            break;
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', function (event) {
+                if (!event.ctrlKey && !event.metaKey) {
+                    ctrlPressed = false;
+                    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+                }
+            });
+
+            window.addEventListener('blur', function () {
+                ctrlPressed = false;
+                controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+            });
+        }
+
+        function createAxes() {
+            const axesHelper = new THREE.AxesHelper(1.2);
+            scene.add(axesHelper);
+
+            const labelGeometry = new THREE.BoxGeometry(0.02, 0.02, 0.02);
+
+            // X軸 (Cyan)
+            const xMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const xLabel = new THREE.Mesh(labelGeometry, xMaterial);
+            xLabel.position.set(1.3, 0, 0);
+            scene.add(xLabel);
+
+            // Y軸 (Magenta)
+            const yMaterial = new THREE.MeshBasicMaterial({ color: 0xff00ff });
+            const yLabel = new THREE.Mesh(labelGeometry, yMaterial);
+            yLabel.position.set(0, 1.3, 0);
+            scene.add(yLabel);
+
+            // Z軸 (Yellow)
+            const zMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            const zLabel = new THREE.Mesh(labelGeometry, zMaterial);
+            zLabel.position.set(0, 0, 1.3);
+            scene.add(zLabel);
+        }
+
+        function createGrid() {
+            const gridSize = 1;
+            const divisions = 10;
+
+            // XY平面のグリッド
+            const gridXY = new THREE.GridHelper(gridSize, divisions, 0x888888, 0xcccccc);
+            gridXY.rotation.x = Math.PI / 2;
+            gridXY.position.set(0.5, 0.5, 0);
+            scene.add(gridXY);
+
+            // XZ平面のグリッド
+            const gridXZ = new THREE.GridHelper(gridSize, divisions, 0x888888, 0xcccccc);
+            gridXZ.position.set(0.5, 0, 0.5);
+            scene.add(gridXZ);
+
+            // YZ平面のグリッド
+            const gridYZ = new THREE.GridHelper(gridSize, divisions, 0x888888, 0xcccccc);
+            gridYZ.rotation.z = Math.PI / 2;
+            gridYZ.position.set(0, 0.5, 0.5);
+            scene.add(gridYZ);
+        }
+
+        function addLights() {
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+            directionalLight.position.set(2, 2, 2);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+
+            const pointLight = new THREE.PointLight(0xffffff, 0.4);
+            pointLight.position.set(-2, 2, -2);
+            scene.add(pointLight);
+        }
+
+        function cmyToRgb(c, m, y) {
+            const r = Math.max(0, Math.min(1, 1 - c));
+            const g = Math.max(0, Math.min(1, 1 - m));
+            const b = Math.max(0, Math.min(1, 1 - y));
+            return new THREE.Color(r, g, b);
+        }
+
+        function clearPoints() {
+            ownPoints.forEach(point => scene.remove(point));
+            targetPoints.forEach(point => scene.remove(point));
+            ownLabels.forEach(label => scene.remove(label));
+            if (mixedPoint) {
+                scene.remove(mixedPoint);
+                mixedPoint = null;
+            }
+            if (connectionLine) {
+                scene.remove(connectionLine);
+                connectionLine = null;
+            }
+            if (convexHull) {
+                scene.remove(convexHull);
+                convexHull = null;
+            }
+            ownPoints = [];
+            targetPoints = [];
+            ownLabels = [];
+        }
+
+        function addColorPoint(c, m, y, isOwn, index = -1) {
+            const actualColor = cmyToRgb(c, m, y);
+            const radius = isOwn ? 0.015 : 0.012;
+            const geometry = new THREE.SphereGeometry(radius, 12, 12);
+
+            let material;
+            if (isOwn) {
+                material = new THREE.MeshLambertMaterial({
+                    color: actualColor,
+                    transparent: true,
+                    opacity: 0.9
+                });
+            } else {
+                material = new THREE.MeshLambertMaterial({
+                    color: actualColor,
+                    transparent: true,
+                    opacity: 0.6
+                });
+            }
+
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.set(c, m, y);
+            sphere.castShadow = true;
+            sphere.receiveShadow = true;
+
+            sphere.userData = { c, m, y, isOwn, originalColor: actualColor };
+
+            scene.add(sphere);
+
+            if (isOwn) {
+                ownPoints.push(sphere);
+
+                // Own色のラベルを作成
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'own-label';
+                labelDiv.style.color = '#ffffff';
+                labelDiv.style.fontFamily = 'Arial, sans-serif';
+                labelDiv.style.fontSize = '12px';
+                labelDiv.style.fontWeight = 'bold';
+                labelDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                labelDiv.style.padding = '2px 6px';
+                labelDiv.style.borderRadius = '4px';
+                labelDiv.style.border = '1px solid #ffffff';
+                labelDiv.style.textShadow = '1px 1px 2px rgba(0, 0, 0, 0.8)';
+                labelDiv.textContent = `Own ${index + 1}`;
+
+                const label = new THREE.CSS2DObject(labelDiv);
+                label.position.set(c + 0.05, m + 0.05, y + 0.05); // 点の少し右上に配置
+                scene.add(label);
+                ownLabels.push(label);
+            } else {
+                targetPoints.push(sphere);
+            }
+        }
+
+        function toggleMixer() {
+            mixerMode = !mixerMode;
+            const toggle = document.getElementById('mixer-toggle');
+            const panel = document.getElementById('mixer-panel');
+
+            if (mixerMode) {
+                toggle.textContent = '混合シミュレーター: ON';
+                toggle.classList.add('active');
+                panel.classList.add('active');
+                updateMixerDisplay();
+            } else {
+                toggle.textContent = '混合シミュレーター: OFF';
+                toggle.classList.remove('active');
+                panel.classList.remove('active');
+                clearMixedPoint();
+                clearConnectionLine();
+                selectedTargetIndex = -1;
+                updateTargetVisibility();
+            }
+        }
+
+        function updateMixerDisplay() {
+            updateOwnColorsList();
+            updateTargetColorsList();
+            updateMixedColor();
+        }
+
+        function updateOwnColorsList() {
+            const list = document.getElementById('own-colors-list');
+            list.innerHTML = '';
+
+            ownColors.forEach((color, index) => {
+                const div = document.createElement('div');
+                div.className = 'color-input-group';
+
+                const rgbColor = cmyToRgb(color.c, color.m, color.y);
+                const hexColor = '#' + rgbColor.getHexString();
+
+                div.innerHTML = `
+                    <div class="color-label">
+                        <span class="color-preview" style="background-color: ${hexColor};"></span>
+                        Own ${index + 1} (${color.c.toFixed(2)}, ${color.m.toFixed(2)}, ${color.y.toFixed(2)})
+                    </div>
+                    <input type="number" class="gram-input" value="${gramWeights[index] || 0}" 
+                           step="0.1" min="0" onchange="updateGramWeight(${index}, this.value)">g
+                `;
+
+                list.appendChild(div);
+            });
+        }
+
+        function updateTargetColorsList() {
+            const list = document.getElementById('target-colors-list');
+            list.innerHTML = '';
+
+            targetColors.forEach((color, index) => {
+                const div = document.createElement('div');
+                div.className = 'target-item';
+                if (index === selectedTargetIndex) {
+                    div.classList.add('selected');
+                }
+
+                const rgbColor = cmyToRgb(color.c, color.m, color.y);
+                const hexColor = '#' + rgbColor.getHexString();
+
+                div.innerHTML = `
+                    <span>
+                        <span class="color-preview" style="background-color: ${hexColor}; width: 12px; height: 12px;"></span>
+                        Target ${index + 1}
+                    </span>
+                    <button class="btn-small" onclick="selectTarget(${index})">${index === selectedTargetIndex ? '選択解除' : '選択'}</button>
+                `;
+
+                list.appendChild(div);
+            });
+        }
+
+        function updateGramWeight(index, value) {
+            gramWeights[index] = parseFloat(value) || 0;
+            updateMixedColor();
+        }
+
+        function setAllGrams(value) {
+            gramWeights = gramWeights.map(() => value);
+            updateOwnColorsList();
+            updateMixedColor();
+        }
+
+        function normalizeGrams() {
+            const total = gramWeights.reduce((sum, w) => sum + w, 0);
+            if (total > 0) {
+                gramWeights = gramWeights.map(w => w / total);
+                updateOwnColorsList();
+                updateMixedColor();
+            }
+        }
+
+        function selectTarget(index) {
+            if (selectedTargetIndex === index) {
+                selectedTargetIndex = -1;
+            } else {
+                selectedTargetIndex = index;
+            }
+            updateTargetColorsList();
+            updateTargetVisibility();
+            updateConnectionLine();
+            updateDistanceInfo();
+        }
+
+        function updateTargetVisibility() {
+            targetPoints.forEach((point, index) => {
+                if (mixerMode && selectedTargetIndex !== -1) {
+                    point.visible = (index === selectedTargetIndex);
+                } else {
+                    point.visible = true;
+                }
+            });
+        }
+
+        function calculateMixedColor() {
+            let totalWeight = 0;
+            let totalC = 0, totalM = 0, totalY = 0;
+
+            gramWeights.forEach((weight, index) => {
+                if (weight > 0 && index < ownColors.length) {
+                    totalWeight += weight;
+                    totalC += ownColors[index].c * weight;
+                    totalM += ownColors[index].m * weight;
+                    totalY += ownColors[index].y * weight;
+                }
+            });
+
+            if (totalWeight === 0) {
+                return null;
+            }
+
+            return {
+                c: totalC / totalWeight,
+                m: totalM / totalWeight,
+                y: totalY / totalWeight
+            };
+        }
+
+        function updateMixedColor() {
+            const mixedColor = calculateMixedColor();
+
+            if (mixedColor) {
+                // UIの更新
+                const rgbColor = cmyToRgb(mixedColor.c, mixedColor.m, mixedColor.y);
+                const hexColor = '#' + rgbColor.getHexString();
+
+                document.getElementById('mixed-color-preview').style.backgroundColor = hexColor;
+                document.getElementById('mixed-coords').textContent =
+                    `C: ${mixedColor.c.toFixed(3)}, M: ${mixedColor.m.toFixed(3)}, Y: ${mixedColor.y.toFixed(3)}`;
+
+                // 3D表示の更新
+                updateMixedPoint(mixedColor);
+            } else {
+                clearMixedPoint();
+                document.getElementById('mixed-color-preview').style.backgroundColor = '#f0f0f0';
+                document.getElementById('mixed-coords').textContent = '重みを設定してください';
+            }
+
+            updateConnectionLine();
+            updateDistanceInfo();
+        }
+
+        function updateMixedPoint(mixedColor) {
+            clearMixedPoint();
+
+            const actualColor = cmyToRgb(mixedColor.c, mixedColor.m, mixedColor.y);
+            const geometry = new THREE.SphereGeometry(0.02, 16, 16);
+            const material = new THREE.MeshLambertMaterial({
+                color: actualColor,
+                transparent: true,
+                opacity: 1.0,
+                emissive: actualColor.clone().multiplyScalar(0.3),
+                emissiveIntensity: 0.5
+            });
+
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.castShadow = true;
+            sphere.receiveShadow = true;
+
+            // ワイヤーフレームの追加
+            const wireframeGeometry = new THREE.SphereGeometry(0.022, 12, 12);
+            const wireframeMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                wireframe: true,
+                transparent: true,
+                opacity: 0.8
+            });
+            const wireframe = new THREE.Mesh(wireframeGeometry, wireframeMaterial);
+
+            // グループ化して一緒に管理
+            const mixedGroup = new THREE.Group();
+            mixedGroup.add(sphere);
+            mixedGroup.add(wireframe);
+            mixedGroup.position.set(mixedColor.c, mixedColor.m, mixedColor.y);
+
+            // mixedPointをグループに変更
+            mixedPoint = mixedGroup;
+            scene.add(mixedPoint);
+        }
+
+        function clearMixedPoint() {
+            if (mixedPoint) {
+                scene.remove(mixedPoint);
+                mixedPoint = null;
+            }
+        }
+
+        function updateConnectionLine() {
+            clearConnectionLine();
+
+            if (mixedPoint && selectedTargetIndex !== -1 && selectedTargetIndex < targetColors.length) {
+                const targetColor = targetColors[selectedTargetIndex];
+                const mixedPos = mixedPoint.position; // グループの位置を取得
+
+                const geometry = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(mixedPos.x, mixedPos.y, mixedPos.z),
+                    new THREE.Vector3(targetColor.c, targetColor.m, targetColor.y)
+                ]);
+
+                const material = new THREE.LineBasicMaterial({
+                    color: 0xff0000,
+                    linewidth: 3,
+                    transparent: true,
+                    opacity: 0.8
+                });
+
+                connectionLine = new THREE.Line(geometry, material);
+                scene.add(connectionLine);
+            }
+        }
+
+        function clearConnectionLine() {
+            if (connectionLine) {
+                scene.remove(connectionLine);
+                connectionLine = null;
+            }
+        }
+
+        function updateDistanceInfo() {
+            const distancePanel = document.getElementById('distance-info');
+            const distanceValue = document.getElementById('distance-value');
+
+            if (mixedPoint && selectedTargetIndex !== -1 && selectedTargetIndex < targetColors.length) {
+                const mixedColor = calculateMixedColor();
+                const targetColor = targetColors[selectedTargetIndex];
+
+                if (mixedColor) {
+                    const distance = Math.sqrt(
+                        Math.pow(mixedColor.c - targetColor.c, 2) +
+                        Math.pow(mixedColor.m - targetColor.m, 2) +
+                        Math.pow(mixedColor.y - targetColor.y, 2)
+                    );
+
+                    distanceValue.textContent = distance.toFixed(4);
+                    distancePanel.style.display = 'block';
+                } else {
+                    distancePanel.style.display = 'none';
+                }
+            } else {
+                distancePanel.style.display = 'none';
+            }
+        }
+
+        async function loadTestCase() {
+            const testcase = document.getElementById('testcase').value.trim();
+            if (!testcase) {
+                showError('テストケース名を入力してください');
+                return;
+            }
+
+            const filename = `in/${testcase.padStart(4, '0')}.txt`;
+
+            try {
+                hideError();
+                document.getElementById('loading').style.display = 'block';
+
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`ファイルが見つかりません: ${filename}`);
+                }
+
+                const content = await response.text();
+                parseTestCase(content);
+                currentTestCase = testcase;
+
+                document.getElementById('loading').style.display = 'none';
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                showError(`エラー: ${error.message}`);
+            }
+        }
+
+        function parseTestCase(content) {
+            const lines = content.trim().split('\n');
+            const [n, k, h, t, d] = lines[0].split(' ').map(Number);
+
+            // 情報パネルの更新
+            document.getElementById('info-n').textContent = n;
+            document.getElementById('info-k').textContent = k;
+            document.getElementById('info-h').textContent = h;
+            document.getElementById('info-panel').style.display = 'block';
+
+            // 既存の点を削除
+            clearPoints();
+
+            // データの初期化
+            ownColors = [];
+            targetColors = [];
+            gramWeights = [];
+
+            // Own色の読み込み
+            for (let i = 1; i <= k; i++) {
+                const [c, m, y] = lines[i].split(' ').map(Number);
+                ownColors.push({ c, m, y });
+                gramWeights.push(0);
+                addColorPoint(c, m, y, true, i - 1); // インデックスを渡す
+            }
+
+            // Target色の読み込み
+            for (let i = k + 1; i <= k + h; i++) {
+                const [c, m, y] = lines[i].split(' ').map(Number);
+                targetColors.push({ c, m, y });
+                addColorPoint(c, m, y, false);
+            }
+
+            // 凸包の作成
+            createConvexHull();
+
+            // 現在のスライダー設定を新しい点に適用
+            updatePointSize();
+            updateOpacity();
+
+            // 混合モードが有効な場合、UIを更新
+            if (mixerMode) {
+                updateMixerDisplay();
+            }
+
+            // 視点をリセットしない
+        }
+
+        function updatePointSize() {
+            const size = parseFloat(document.getElementById('pointSize').value);
+
+            ownPoints.forEach(point => {
+                point.scale.setScalar(size);
+            });
+
+            targetPoints.forEach(point => {
+                point.scale.setScalar(size * 0.8);
+            });
+        }
+
+        function updateOpacity() {
+            const opacity = parseFloat(document.getElementById('opacity').value);
+
+            ownPoints.forEach(point => {
+                point.material.opacity = opacity * 0.9;
+            });
+
+            targetPoints.forEach(point => {
+                point.material.opacity = opacity * 0.6;
+            });
+        }
+
+        function resetCamera() {
+            camera.position.set(1.5, 1.5, 1.5);
+            camera.lookAt(0.5, 0.5, 0.5);
+            controls.target.set(0.5, 0.5, 0.5);
+            controls.update();
+        }
+
+        function showError(message) {
+            const errorPanel = document.getElementById('error-panel');
+            errorPanel.textContent = message;
+            errorPanel.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error-panel').style.display = 'none';
+        }
+
+        function onWindowResize() {
+            const container = document.getElementById('canvas-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            labelRenderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        // エンターキーでの読み込み
+        document.getElementById('testcase').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                loadTestCase();
+            }
+        });
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', function () {
+            init3D();
+        });
+
+        function createConvexHull() {
+            clearConvexHull();
+
+            if (ownColors.length < 1) {
+                console.log('所有色がありません');
+                return;
+            }
+
+            try {
+                console.log('凸包を作成中...', ownColors.length, '点を使用');
+
+                // own色の座標からVector3配列を作成
+                const points = ownColors.map(color => new THREE.Vector3(color.c, color.m, color.y));
+                console.log('Points:', points);
+
+                let geometry;
+
+                // ConvexGeometryが利用可能な場合は凸包を、そうでなければバウンディングボックスを作成
+                if (typeof THREE.ConvexGeometry !== 'undefined' && ownColors.length >= 4) {
+                    console.log('ConvexGeometryを使用して凸包を作成');
+                    geometry = new THREE.ConvexGeometry(points);
+                } else {
+                    console.log('ConvexGeometryが利用できないか点が不足、バウンディングボックスを作成');
+
+                    // バウンディングボックスの範囲を計算
+                    let minC = Math.min(...ownColors.map(c => c.c));
+                    let maxC = Math.max(...ownColors.map(c => c.c));
+                    let minM = Math.min(...ownColors.map(c => c.m));
+                    let maxM = Math.max(...ownColors.map(c => c.m));
+                    let minY = Math.min(...ownColors.map(c => c.y));
+                    let maxY = Math.max(...ownColors.map(c => c.y));
+
+                    const width = Math.max(maxC - minC, 0.02);
+                    const height = Math.max(maxM - minM, 0.02);
+                    const depth = Math.max(maxY - minY, 0.02);
+
+                    geometry = new THREE.BoxGeometry(width, height, depth);
+
+                    // 中心位置計算のための変数を設定
+                    const centerC = (minC + maxC) / 2;
+                    const centerM = (minM + maxM) / 2;
+                    const centerY = (minY + maxY) / 2;
+                    geometry.userData = { centerC, centerM, centerY };
+                }
+
+                // 面の表示用マテリアル（半透明）
+                const faceMaterial = new THREE.MeshLambertMaterial({
+                    color: 0xff6b6b,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.DoubleSide,
+                    depthWrite: false
+                });
+
+                // ワイヤーフレーム用マテリアル
+                const wireframeMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff4757,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.4
+                });
+
+                // グループ化
+                const convexGroup = new THREE.Group();
+
+                // 面の追加
+                const faceMesh = new THREE.Mesh(geometry.clone(), faceMaterial);
+                convexGroup.add(faceMesh);
+
+                // ワイヤーフレームの追加
+                const wireframeMesh = new THREE.Mesh(geometry.clone(), wireframeMaterial);
+                convexGroup.add(wireframeMesh);
+
+                // バウンディングボックスの場合は中心位置に配置
+                if (geometry.userData && geometry.userData.centerC !== undefined) {
+                    convexGroup.position.set(
+                        geometry.userData.centerC,
+                        geometry.userData.centerM,
+                        geometry.userData.centerY
+                    );
+                }
+
+                convexHull = convexGroup;
+                scene.add(convexHull);
+                console.log('凸包/バウンディングボックスをシーンに追加しました');
+
+            } catch (error) {
+                console.error('凸包の作成に失敗しました:', error);
+            }
+        }
+
+        function clearConvexHull() {
+            if (convexHull) {
+                scene.remove(convexHull);
+                convexHull = null;
+            }
+        }
+    </script>
+</body>
+
+</html>
